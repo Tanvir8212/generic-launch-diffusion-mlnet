@@ -1,0 +1,22 @@
+# Visual Studio / .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# Large raw data files
+Data/*.csv
+Data/*.xlsx
+
+# Results and model outputs
+Results/*.zip
+Results/*.xlsx
+
+# Temporary files
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
