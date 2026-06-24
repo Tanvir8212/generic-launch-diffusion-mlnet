@@ -131,6 +131,10 @@ namespace ModelTraining
             var prediction = predictionEngine.Predict(sample);
 
             Console.WriteLine("Predicted adoption class: " + prediction.PredictedAdoptionClass);
+
+            Console.WriteLine();
+            Console.WriteLine("Press ENTER to close...");
+            Console.ReadLine();
         }
     }
 }

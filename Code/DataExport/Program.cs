@@ -82,6 +82,7 @@ ORDER BY GenericName, QuarterSinceLaunch;
 
             Console.WriteLine("CSV export completed successfully.");
             Console.WriteLine(outputPath);
+            
         }
 
         static string ToCsvNumber(object value)
