@@ -43,3 +43,16 @@ The ML.NET model classifies generic adoption as:
 
 ## Note
 Raw data files are not included in this repository because Medicaid SDUD files can be large. They should be downloaded separately from public data sources.
+
+## Paper
+
+Khan, T. M. (2026). *Which State-Level Pharmacy Markets Get Generics First After Launch? An ML.NET-Based Forecasting Framework for Generic Drug Diffusion and Access Inequality*. Zenodo. https://doi.org/10.5281/zenodo.20837673
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20837673.svg)](https://doi.org/10.5281/zenodo.20837673)
+
+## Contact
+
+Tanvir Mahmud Khan
+Independent Researcher
+Dhaka, Bangladesh
+sajid8212@gmail.com
