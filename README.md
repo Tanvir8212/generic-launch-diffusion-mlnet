@@ -50,6 +50,14 @@ Khan, T. M. (2026). *Which State-Level Pharmacy Markets Get Generics First After
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20837673.svg)](https://doi.org/10.5281/zenodo.20837673)
 
+## Publication
+
+Working paper archived on Zenodo:  
+https://doi.org/10.5281/zenodo.20837673
+
+Preprint available on MediArXiv / OSF Preprints:  
+https://osf.io/preprints/mediarxiv/x3s25_v1
+
 ## Contact
 
 Tanvir Mahmud Khan
