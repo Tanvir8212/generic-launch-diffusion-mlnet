@@ -45,4 +45,13 @@ namespace ModelTraining
 
         public float[] Score { get; set; }
     }
+
+    public class PredictionWithLabel
+    {
+        [ColumnName("AdoptionClass")]
+        public string AdoptionClass { get; set; }
+
+        [ColumnName("PredictedLabel")]
+        public string PredictedAdoptionClass { get; set; }
+    }
 }

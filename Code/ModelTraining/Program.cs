@@ -9,88 +9,71 @@ namespace ModelTraining
     {
         static void Main(string[] args)
         {
-            string dataPath = @"D:\Research\GenericLaunchDiffusion\Data\model_training.csv";
-            string modelPath = @"D:\Research\GenericLaunchDiffusion\Results\generic_launch_model.zip";
+            string trainDataPath = @"D:\Research\GenericLaunchDiffusion\Data\model_training_train_2017_2022.csv";
+            string testDataPath = @"D:\Research\GenericLaunchDiffusion\Data\model_training_test_2023_2024.csv";
+            string modelPath = @"D:\Research\GenericLaunchDiffusion\Results\generic_launch_model_year_split.zip";
 
             Directory.CreateDirectory(@"D:\Research\GenericLaunchDiffusion\Results");
 
-            if (!File.Exists(dataPath))
+            if (!File.Exists(trainDataPath))
             {
-                Console.WriteLine("Training CSV not found:");
-                Console.WriteLine(dataPath);
+                Console.WriteLine("Train CSV not found:");
+                Console.WriteLine(trainDataPath);
                 return;
             }
 
-            var rows = File.ReadAllLines(dataPath).Skip(1).ToList();
-
-            Console.WriteLine("Training rows found: " + rows.Count);
-
-            var labels = rows
-                .Where(r => !string.IsNullOrWhiteSpace(r))
-                .Select(r => r.Split(',').Last().Trim())
-                .Distinct()
-                .ToList();
-
-            Console.WriteLine("Adoption classes found:");
-            foreach (var label in labels)
+            if (!File.Exists(testDataPath))
             {
-                Console.WriteLine("- " + label);
-            }
-
-            if (rows.Count < 10)
-            {
-                Console.WriteLine();
-                Console.WriteLine("WARNING: Very small dataset. Good for pipeline testing, not final research.");
-            }
-
-            if (labels.Count < 2)
-            {
-                Console.WriteLine();
-                Console.WriteLine("ERROR: Only one adoption class found.");
-                Console.WriteLine("ML classification needs at least two classes, for example Fast and Slow.");
-                Console.WriteLine("Add more generic launches or adjust thresholds later.");
+                Console.WriteLine("Test CSV not found:");
+                Console.WriteLine(testDataPath);
                 return;
             }
+
+            PrintCsvSummary("Training", trainDataPath);
+            PrintCsvSummary("Test", testDataPath);
 
             var mlContext = new MLContext(seed: 1);
 
-            var data = mlContext.Data.LoadFromTextFile<GenericLaunchData>(
-                path: dataPath,
+            var trainData = mlContext.Data.LoadFromTextFile<GenericLaunchData>(
+                path: trainDataPath,
                 hasHeader: true,
                 separatorChar: ',');
 
-            var split = mlContext.Data.TrainTestSplit(data, testFraction: 0.25);
+            var testData = mlContext.Data.LoadFromTextFile<GenericLaunchData>(
+                path: testDataPath,
+                hasHeader: true,
+                separatorChar: ',');
 
-            var pipeline =
-                mlContext.Transforms.Conversion.MapValueToKey(
-                        outputColumnName: "Label",
-                        inputColumnName: nameof(GenericLaunchData.AdoptionClass))
-                    .Append(mlContext.Transforms.Concatenate(
-                        "Features",
-                        nameof(GenericLaunchData.QuarterSinceLaunch),
-                        nameof(GenericLaunchData.CurrentND),
-                        nameof(GenericLaunchData.CurrentWD),
-                        nameof(GenericLaunchData.PreviousND),
-                        nameof(GenericLaunchData.PreviousWD),
-                        nameof(GenericLaunchData.NDGrowth),
-                        nameof(GenericLaunchData.WDGrowth),
-                        nameof(GenericLaunchData.AccessGap),
-                        nameof(GenericLaunchData.TotalGenericPrescriptions),
-                        nameof(GenericLaunchData.TotalClassPrescriptions)))
-                    .Append(mlContext.Transforms.NormalizeMinMax("Features"))
-                    .Append(mlContext.MulticlassClassification.Trainers.SdcaMaximumEntropy(
-                        labelColumnName: "Label",
-                        featureColumnName: "Features"))
-                    .Append(mlContext.Transforms.Conversion.MapKeyToValue(
-                        outputColumnName: "PredictedLabel",
-                        inputColumnName: "PredictedLabel"));
+            var pipeline = mlContext.Transforms.Conversion.MapValueToKey(
+                    outputColumnName: "Label",
+                    inputColumnName: nameof(GenericLaunchData.AdoptionClass))
+                .Append(mlContext.Transforms.Concatenate(
+                    "Features",
+                    nameof(GenericLaunchData.QuarterSinceLaunch),
+                    nameof(GenericLaunchData.CurrentND),
+                    nameof(GenericLaunchData.CurrentWD),
+                    nameof(GenericLaunchData.PreviousND),
+                    nameof(GenericLaunchData.PreviousWD),
+                    nameof(GenericLaunchData.NDGrowth),
+                    nameof(GenericLaunchData.WDGrowth),
+                    nameof(GenericLaunchData.AccessGap),
+                    nameof(GenericLaunchData.TotalGenericPrescriptions),
+                    nameof(GenericLaunchData.TotalClassPrescriptions)))
+                .Append(mlContext.Transforms.NormalizeMinMax("Features"))
+                .Append(mlContext.MulticlassClassification.Trainers.SdcaMaximumEntropy(
+                    labelColumnName: "Label",
+                    featureColumnName: "Features"))
+                .Append(mlContext.Transforms.Conversion.MapKeyToValue(
+                    outputColumnName: "PredictedLabel",
+                    inputColumnName: "PredictedLabel"));
 
             Console.WriteLine();
-            Console.WriteLine("Training model...");
+            Console.WriteLine("Training year-based model...");
+            Console.WriteLine("Train years: 2017-2022");
+            Console.WriteLine("Test years : 2023-2024");
 
-            var model = pipeline.Fit(split.TrainSet);
-
-            var predictions = model.Transform(split.TestSet);
+            var model = pipeline.Fit(trainData);
+            var predictions = model.Transform(testData);
 
             var metrics = mlContext.MulticlassClassification.Evaluate(
                 predictions,
@@ -99,12 +82,15 @@ namespace ModelTraining
 
             Console.WriteLine();
             Console.WriteLine("ML.NET Generic Launch Diffusion Model");
+            Console.WriteLine("Year-Based Validation");
             Console.WriteLine("------------------------------------");
             Console.WriteLine("Micro Accuracy: " + metrics.MicroAccuracy.ToString("P2"));
             Console.WriteLine("Macro Accuracy: " + metrics.MacroAccuracy.ToString("P2"));
             Console.WriteLine("Log Loss: " + metrics.LogLoss.ToString("F4"));
 
-            mlContext.Model.Save(model, split.TrainSet.Schema, modelPath);
+            PrintConfusionMatrixAndPerClassMetrics(mlContext, predictions);
+
+            mlContext.Model.Save(model, trainData.Schema, modelPath);
 
             Console.WriteLine();
             Console.WriteLine("Model saved to: " + modelPath);
@@ -129,11 +115,128 @@ namespace ModelTraining
             };
 
             var prediction = predictionEngine.Predict(sample);
-
             Console.WriteLine("Predicted adoption class: " + prediction.PredictedAdoptionClass);
+        }
+
+        static void PrintCsvSummary(string name, string path)
+        {
+            var rows = File.ReadAllLines(path)
+                .Skip(1)
+                .Where(r => !string.IsNullOrWhiteSpace(r))
+                .ToList();
 
             Console.WriteLine();
-            Console.WriteLine("Press ENTER to close...");
+            Console.WriteLine(name + " rows found: " + rows.Count);
+
+            var labels = rows
+                .Select(r => r.Split(',').Last().Trim())
+                .GroupBy(x => x)
+                .OrderBy(x => x.Key)
+                .ToList();
+
+            Console.WriteLine(name + " adoption classes:");
+
+            foreach (var label in labels)
+            {
+                Console.WriteLine("- " + label.Key + ": " + label.Count());
+            }
+        }
+
+        static void PrintConfusionMatrixAndPerClassMetrics(MLContext mlContext, IDataView predictions)
+        {
+            var predictionRows = mlContext.Data.CreateEnumerable<PredictionWithLabel>(
+                predictions,
+                reuseRowObject: false
+            ).ToList();
+
+            var classNames = predictionRows
+                .Select(r => r.AdoptionClass)
+                .Union(predictionRows.Select(r => r.PredictedAdoptionClass))
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+
+            Console.WriteLine();
+            Console.WriteLine("Confusion Matrix");
+            Console.WriteLine("----------------");
+
+            Console.Write("Actual \\ Predicted".PadRight(22));
+
+            foreach (var predictedClass in classNames)
+            {
+                Console.Write(predictedClass.PadRight(12));
+            }
+
+            Console.WriteLine();
+
+            foreach (var actualClass in classNames)
+            {
+                Console.Write(actualClass.PadRight(22));
+
+                foreach (var predictedClass in classNames)
+                {
+                    int count = predictionRows.Count(r =>
+                        r.AdoptionClass == actualClass &&
+                        r.PredictedAdoptionClass == predictedClass);
+
+                    Console.Write(count.ToString().PadRight(12));
+                }
+
+                Console.WriteLine();
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Per-Class Metrics");
+            Console.WriteLine("-----------------");
+            Console.WriteLine(
+                "Class".PadRight(12) +
+                "Precision".PadRight(14) +
+                "Recall".PadRight(14) +
+                "F1".PadRight(14) +
+                "Support"
+            );
+
+            foreach (var className in classNames)
+            {
+                int truePositive = predictionRows.Count(r =>
+                    r.AdoptionClass == className &&
+                    r.PredictedAdoptionClass == className);
+
+                int falsePositive = predictionRows.Count(r =>
+                    r.AdoptionClass != className &&
+                    r.PredictedAdoptionClass == className);
+
+                int falseNegative = predictionRows.Count(r =>
+                    r.AdoptionClass == className &&
+                    r.PredictedAdoptionClass != className);
+
+                int support = predictionRows.Count(r =>
+                    r.AdoptionClass == className);
+
+                double precision = (truePositive + falsePositive) == 0
+                    ? 0
+                    : (double)truePositive / (truePositive + falsePositive);
+
+                double recall = (truePositive + falseNegative) == 0
+                    ? 0
+                    : (double)truePositive / (truePositive + falseNegative);
+
+                double f1 = (precision + recall) == 0
+                    ? 0
+                    : 2 * precision * recall / (precision + recall);
+
+                Console.WriteLine(
+                    className.PadRight(12) +
+                    precision.ToString("P2").PadRight(14) +
+                    recall.ToString("P2").PadRight(14) +
+                    f1.ToString("P2").PadRight(14) +
+                    support
+                );
+            }
+
+
+            Console.WriteLine("Press Enter to end");
             Console.ReadLine();
         }
     }
