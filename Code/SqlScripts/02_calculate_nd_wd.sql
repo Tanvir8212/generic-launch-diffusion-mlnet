@@ -9,6 +9,10 @@ Purpose:
 
 Required staging tables:
 - Stg_FirstGenericLaunches
+- Stg_SDUD_2017
+- Stg_SDUD_2018
+- Stg_SDUD_2019
+- Stg_SDUD_2020
 - Stg_SDUD_2021
 - Stg_SDUD_2022
 - Stg_SDUD_2023
@@ -51,7 +55,7 @@ GO
 TRUNCATE TABLE MedicaidUtilization;
 GO
 
-DECLARE @y INT = 2021;
+DECLARE @y INT = 2017;
 DECLARE @table SYSNAME;
 DECLARE @sql NVARCHAR(MAX);
 

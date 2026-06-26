@@ -1,5 +1,4 @@
-/*
-
+/* 
 Purpose:
 Creates ML.NET training data from QuarterlyMetrics.
 
@@ -7,8 +6,10 @@ ML task:
 Classify generic launch diffusion as Fast, Medium, or Slow.
 
 Logic:
-Uses early launch quarters Q1-Q3 as input features.
-Uses Q4 Weighted Distribution as the adoption-class label.
+- Uses early launch quarters Q1-Q3 as input feature rows.
+- Uses Q4 Weighted Distribution as the adoption-class label.
+- Keeps BrandName in ModelTrainingData for audit/reproducibility.
+- BrandName is NOT used as an ML feature.
 
 AdoptionClass:
 Fast   = Q4 WD >= 80%
@@ -19,7 +20,15 @@ Slow   = Q4 WD < 50%
 USE GenericLaunchResearch;
 GO
 
-TRUNCATE TABLE ModelTrainingData;
+/* Add BrandName column if missing */
+IF COL_LENGTH('dbo.ModelTrainingData', 'BrandName') IS NULL
+BEGIN
+    ALTER TABLE dbo.ModelTrainingData
+    ADD BrandName NVARCHAR(255) NULL;
+END;
+GO
+
+TRUNCATE TABLE dbo.ModelTrainingData;
 GO
 
 ;WITH Q AS
@@ -28,25 +37,25 @@ GO
         GenericName,
         BrandName,
         TherapeuticClass,
-        Year,
-        Quarter,
+        [Year],
+        [Quarter],
         QuarterSinceLaunch,
         NumericDistribution,
         WeightedDistribution,
         LAG(NumericDistribution) OVER
         (
             PARTITION BY GenericName, BrandName
-            ORDER BY Year, Quarter
+            ORDER BY [Year], [Quarter]
         ) AS PreviousND,
         LAG(WeightedDistribution) OVER
         (
             PARTITION BY GenericName, BrandName
-            ORDER BY Year, Quarter
+            ORDER BY [Year], [Quarter]
         ) AS PreviousWD,
         AccessGap,
         TotalGenericPrescriptions,
         TotalClassPrescriptions
-    FROM QuarterlyMetrics
+    FROM dbo.QuarterlyMetrics
     WHERE QuarterSinceLaunch BETWEEN 1 AND 4
 ),
 FinalAdoption AS
@@ -55,13 +64,14 @@ FinalAdoption AS
         GenericName,
         BrandName,
         MAX(CASE WHEN QuarterSinceLaunch = 4 THEN WeightedDistribution END) AS WDAtQuarter4
-    FROM QuarterlyMetrics
+    FROM dbo.QuarterlyMetrics
     GROUP BY GenericName, BrandName
     HAVING MAX(CASE WHEN QuarterSinceLaunch = 4 THEN 1 ELSE 0 END) = 1
 )
-INSERT INTO ModelTrainingData
+INSERT INTO dbo.ModelTrainingData
 (
     GenericName,
+    BrandName,
     TherapeuticClass,
     QuarterSinceLaunch,
     CurrentND,
@@ -77,6 +87,7 @@ INSERT INTO ModelTrainingData
 )
 SELECT
     q.GenericName,
+    q.BrandName,
     q.TherapeuticClass,
     q.QuarterSinceLaunch,
     q.NumericDistribution AS CurrentND,
@@ -96,33 +107,51 @@ SELECT
 FROM Q q
 JOIN FinalAdoption fa
     ON fa.GenericName = q.GenericName
-   AND fa.BrandName = q.BrandName
+    AND fa.BrandName = q.BrandName
 WHERE q.QuarterSinceLaunch BETWEEN 1 AND 3;
 GO
 
-
-
-SELECT *
-FROM ModelTrainingData
-ORDER BY GenericName, QuarterSinceLaunch;
+/* Audit view */
+SELECT TOP 50
+    GenericName,
+    BrandName,
+    TherapeuticClass,
+    QuarterSinceLaunch,
+    CurrentND,
+    CurrentWD,
+    PreviousND,
+    PreviousWD,
+    NDGrowth,
+    WDGrowth,
+    AccessGap,
+    TotalGenericPrescriptions,
+    TotalClassPrescriptions,
+    AdoptionClass
+FROM dbo.ModelTrainingData
+ORDER BY GenericName, BrandName, QuarterSinceLaunch;
 GO
 
-
-
-SELECT 
+/* Class distribution */
+SELECT
     AdoptionClass,
     COUNT(*) AS TotalRows
-FROM ModelTrainingData
+FROM dbo.ModelTrainingData
 GROUP BY AdoptionClass
 ORDER BY AdoptionClass;
 GO
 
-
-
-SELECT COUNT(*) AS TotalTrainingRows
-FROM ModelTrainingData;
+/* Total training rows */
+SELECT
+    COUNT(*) AS TotalTrainingRows
+FROM dbo.ModelTrainingData;
 GO
 
+/* 
+IMPORTANT:
+Use this final SELECT when exporting model_training.csv for ML.NET.
+Do NOT include GenericName, BrandName, or TherapeuticClass in the ML CSV.
+Your current GenericLaunchData.cs expects exactly these 11 columns.
+*/
 
 SELECT
     QuarterSinceLaunch,
@@ -136,6 +165,6 @@ SELECT
     TotalGenericPrescriptions,
     TotalClassPrescriptions,
     AdoptionClass
-FROM ModelTrainingData
-ORDER BY GenericName, QuarterSinceLaunch;
+FROM dbo.ModelTrainingData
+ORDER BY GenericName, BrandName, QuarterSinceLaunch;
 GO
