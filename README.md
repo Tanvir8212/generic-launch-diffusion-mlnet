@@ -53,7 +53,7 @@ Khan, T. M. (2026). *Which State-Level Pharmacy Markets Get Generics First After
 ## Publication
 
 Working paper archived on Zenodo:  
-https://doi.org/10.5281/zenodo.20837673
+https://zenodo.org/records/20947308
 
 Preprint available on MediArXiv / OSF Preprints:  
 https://osf.io/preprints/mediarxiv/x3s25_v1
