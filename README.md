@@ -46,9 +46,9 @@ Raw data files are not included in this repository because Medicaid SDUD files c
 
 ## Paper
 
-Khan, T. M. (2026). *Which State-Level Pharmacy Markets Get Generics First After Launch? An ML.NET-Based Forecasting Framework for Generic Drug Diffusion and Access Inequality*. Zenodo. https://doi.org/10.5281/zenodo.20837673
+Khan, T. M. (2026). *Which State-Level Pharmacy Markets Get Generics First After Launch? An ML.NET-Based Forecasting Framework for Generic Drug Diffusion and Access Inequality*. Zenodo. https://zenodo.org/records/20947308
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20837673.svg)](https://doi.org/10.5281/zenodo.20837673)
+https://zenodo.org/records/20947308
 
 ## Publication
 
